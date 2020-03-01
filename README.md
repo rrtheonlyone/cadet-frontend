@@ -95,7 +95,7 @@ See [js-slang README](https://github.com/source-academy/js-slang#using-your-js-s
 
 ### Running your own js-slang
 
-See (js-slang README)[https://t.me/c/1196196675/13] for instructions how to run your own js-slang in the cadet-frontend.
+See (js-slang README)[https://github.com/source-academy/js-slang#using-your-js-slang-in-local-source-academy] for instructions how to run your own js-slang in the cadet-frontend.
 
 ### Contribution Guidelines
 
