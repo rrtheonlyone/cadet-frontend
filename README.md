@@ -28,6 +28,7 @@ The project requires some environment variables to be set to work properly. In t
 
 #### Backend configuration
 
+<<<<<<< HEAD
 1. `REACT_APP_BACKEND_URL`: The base URL of the backend. If you are testing with a local backend, the value in `.env.example` matches the default development configuration of the backend.
 1. `REACT_APP_USE_BACKEND`: Set to false if not running together with the [backend](https://github.com/source-academy/cadet).
 1. `REACT_APP_MODULE_BACKEND_URL`: The base URL from which Source modules are loaded. (This is a js-slang feature, but of course it has to be configured here.) You can just use the default value in development.
@@ -75,6 +76,13 @@ The frontend can be configured to disable itself (based on user's system time) d
 ## Development
 
 ### Running the tests
+=======
+ \*If you require access to Luminus keys please email Prof Henz at henz@comp.nus.edu.sg to request for a with the email subject heading "Request for Luminus API Keys".
+ 
+## Development
+  
+### Running the tests 
+>>>>>>> Update README.md
 
 Before pushing to Github, ensure that your code is formatted and your tests are passing. These two commands should help with that:
 
@@ -84,6 +92,10 @@ Before pushing to Github, ensure that your code is formatted and your tests are 
 ### Running your own js-slang
 
 See [js-slang README](https://github.com/source-academy/js-slang#using-your-js-slang-in-local-source-academy) for instructions how to run your own js-slang in the cadet-frontend.
+
+### Running your own js-slang
+
+See (js-slang README)[https://t.me/c/1196196675/13] for instructions how to run your own js-slang in the cadet-frontend.
 
 ### Contribution Guidelines
 
