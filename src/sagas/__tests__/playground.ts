@@ -126,7 +126,7 @@ describe('Playground saga tests', () => {
       .provide([[call(shortenURLRequest, queryString, ''), mockResp]])
       .not.call(
         showWarningMessage,
-        'Something went wrong trying to shorten the url. Please try again'
+        'Something went wrong trying to create the share link. Please try again'
       )
       .not.call(showSuccessMessage, mockResp.message)
       .put(actions.updateShortURL(mockResp.shorturl))
@@ -181,7 +181,7 @@ describe('Playground saga tests', () => {
       .provide([[call(shortenURLRequest, queryString, 'tester'), mockResp]])
       .not.call(
         showWarningMessage,
-        'Something went wrong trying to shorten the url. Please try again'
+        'Something went wrong trying to create the share link. Please try again'
       )
       .not.call(showSuccessMessage, mockResp.message)
       .put(actions.updateShortURL(mockResp.shorturl))
@@ -218,7 +218,10 @@ describe('Playground saga tests', () => {
         payload: ''
       })
       .provide([[call(shortenURLRequest, queryString, ''), null]])
-      .call(showWarningMessage, 'Something went wrong trying to shorten the url. Please try again')
+      .call(
+        showWarningMessage,
+        'Something went wrong trying to create the share link. Please try again'
+      )
       .put(actions.updateShortURL('ERROR'))
       .silentRun();
   });
@@ -274,7 +277,7 @@ describe('Playground saga tests', () => {
       .call(showSuccessMessage, mockResp.message)
       .not.call(
         showWarningMessage,
-        'Something went wrong trying to shorten the url. Please try again'
+        'Something went wrong trying to create the share link. Please try again'
       )
       .put(actions.updateShortURL(mockResp.shorturl))
       .silentRun();
