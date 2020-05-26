@@ -26,7 +26,7 @@ export default function* playgroundSaga(): SagaIterator {
       yield put(actions.updateShortURL(errorMsg));
       return yield call(
         showWarningMessage,
-        'Something went wrong trying to shorten the url. Please try again'
+        'Something went wrong trying to create the share link. Please try again'
       );
     }
 
