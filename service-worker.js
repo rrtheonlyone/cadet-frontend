@@ -14,7 +14,7 @@
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/4.3.1/workbox-sw.js");
 
 importScripts(
-  "/cadet-frontend/precache-manifest.9c01168912ce3fcb014264f1f942aaf1.js"
+  "/cadet-frontend/precache-manifest.21cbd9b6cb7eee5b5e7e87cade6d3871.js"
 );
 
 self.addEventListener('message', (event) => {

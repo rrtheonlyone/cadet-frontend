@@ -1242,19 +1242,19 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/cadet-frontend/ffa4bb36409e4d1c0940f1f43984f7c6.js"
   },
   {
-    "revision": "94b565709c40b275d3c94fc187094c78",
+    "revision": "eb5cd863378b8983fc588c23def7d23a",
     "url": "/cadet-frontend/index.html"
-  },
-  {
-    "url": "/cadet-frontend/static/c4b09cda85d19da4eb57.module.wasm"
   },
   {
     "revision": "74f915c6e104bfb9cd0e",
     "url": "/cadet-frontend/static/css/2.43f7c03e.chunk.css"
   },
   {
-    "revision": "9351ae417bba34670ea6",
+    "revision": "06c09fa8d4035ceb1f36",
     "url": "/cadet-frontend/static/css/main.5c3ade07.chunk.css"
+  },
+  {
+    "url": "/cadet-frontend/static/f8792e7c0215acf92dd4.module.wasm"
   },
   {
     "revision": "74f915c6e104bfb9cd0e",
@@ -1269,8 +1269,8 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/cadet-frontend/static/js/3.2111c004.chunk.js"
   },
   {
-    "revision": "9351ae417bba34670ea6",
-    "url": "/cadet-frontend/static/js/main.a2cdf72c.chunk.js"
+    "revision": "06c09fa8d4035ceb1f36",
+    "url": "/cadet-frontend/static/js/main.bb774f7f.chunk.js"
   },
   {
     "revision": "f70e459719c264d3d23b",

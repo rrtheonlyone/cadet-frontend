@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/cadet-frontend/static/css/main.5c3ade07.chunk.css",
-    "main.js": "/cadet-frontend/static/js/main.a2cdf72c.chunk.js",
-    "main.js.map": "/cadet-frontend/static/js/main.a2cdf72c.chunk.js.map",
+    "main.js": "/cadet-frontend/static/js/main.bb774f7f.chunk.js",
+    "main.js.map": "/cadet-frontend/static/js/main.bb774f7f.chunk.js.map",
     "runtime-main.js": "/cadet-frontend/static/js/runtime-main.f763baac.js",
     "runtime-main.js.map": "/cadet-frontend/static/js/runtime-main.f763baac.js.map",
     "static/css/2.43f7c03e.chunk.css": "/cadet-frontend/static/css/2.43f7c03e.chunk.css",
     "static/js/2.f1618739.chunk.js": "/cadet-frontend/static/js/2.f1618739.chunk.js",
     "static/js/2.f1618739.chunk.js.map": "/cadet-frontend/static/js/2.f1618739.chunk.js.map",
     "static/js/3.2111c004.chunk.js": "/cadet-frontend/static/js/3.2111c004.chunk.js",
-    "static/c4b09cda85d19da4eb57.module.wasm": "/cadet-frontend/static/c4b09cda85d19da4eb57.module.wasm",
+    "static/f8792e7c0215acf92dd4.module.wasm": "/cadet-frontend/static/f8792e7c0215acf92dd4.module.wasm",
     "static/js/3.2111c004.chunk.js.map": "/cadet-frontend/static/js/3.2111c004.chunk.js.map",
     "mode-kotlin.js": "/cadet-frontend/00e8b9f02a5b781e5e602d9282c5a592.js",
     "apex.js": "/cadet-frontend/01664f5c848481ad805e5c0a29627ebd.js",
@@ -426,7 +426,7 @@
     "theme-gruvbox.js": "/cadet-frontend/feff703ce532f20391dfed8199b6971e.js",
     "mode-sjs.js": "/cadet-frontend/ffa4bb36409e4d1c0940f1f43984f7c6.js",
     "index.html": "/cadet-frontend/index.html",
-    "precache-manifest.9c01168912ce3fcb014264f1f942aaf1.js": "/cadet-frontend/precache-manifest.9c01168912ce3fcb014264f1f942aaf1.js",
+    "precache-manifest.21cbd9b6cb7eee5b5e7e87cade6d3871.js": "/cadet-frontend/precache-manifest.21cbd9b6cb7eee5b5e7e87cade6d3871.js",
     "service-worker.js": "/cadet-frontend/service-worker.js",
     "static/css/2.43f7c03e.chunk.css.map": "/cadet-frontend/static/css/2.43f7c03e.chunk.css.map",
     "static/css/main.5c3ade07.chunk.css.map": "/cadet-frontend/static/css/main.5c3ade07.chunk.css.map",
@@ -439,6 +439,6 @@
     "static/css/2.43f7c03e.chunk.css",
     "static/js/2.f1618739.chunk.js",
     "static/css/main.5c3ade07.chunk.css",
-    "static/js/main.a2cdf72c.chunk.js"
+    "static/js/main.bb774f7f.chunk.js"
   ]
 }
