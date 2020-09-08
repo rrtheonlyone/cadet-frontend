@@ -1,12 +1,11 @@
 import { screenCenter, screenSize } from 'src/features/game/commons/CommonConstants';
-import { limitNumber, sleep, toS3Path } from 'src/features/game/utils/GameUtils';
+import { limitNumber, mandatory, sleep, toS3Path } from 'src/features/game/utils/GameUtils';
 
 import ImageAssets from '../../assets/ImageAssets';
 import CommonBackButton from '../../commons/CommonBackButton';
 import { addLoadingScreen } from '../../effects/LoadingScreen';
 import GameLayerManager from '../../layer/GameLayerManager';
 import { Layer } from '../../layer/GameLayerTypes';
-import { FullSaveState } from '../../save/GameSaveTypes';
 import SourceAcademyGame from '../../SourceAcademyGame';
 import { createButton } from '../../utils/ButtonUtils';
 import { loadImage } from '../../utils/LoaderUtils';
@@ -18,11 +17,10 @@ import { createChapter } from './ChapterSelectHelper';
  * Player is able to choose which chapter to play from here.
  */
 class ChapterSelect extends Phaser.Scene {
-  public layerManager: GameLayerManager;
+  public layerManager?: GameLayerManager;
 
   private chapterContainer: Phaser.GameObjects.Container | undefined;
   private backButtonContainer: Phaser.GameObjects.Container | undefined;
-  private loadedGameState: FullSaveState | undefined;
   private autoScrolling: boolean;
   private isScrollLeft: boolean;
   private isScrollRight: boolean;
@@ -32,22 +30,18 @@ class ChapterSelect extends Phaser.Scene {
 
     this.chapterContainer = undefined;
     this.backButtonContainer = undefined;
-    this.layerManager = new GameLayerManager();
     this.autoScrolling = true;
     this.isScrollLeft = false;
     this.isScrollRight = false;
   }
 
-  public init() {
-    SourceAcademyGame.getInstance().setCurrentSceneRef(this);
-  }
-
   public preload() {
     addLoadingScreen(this);
-    this.layerManager.initialise(this);
   }
 
   public async create() {
+    SourceAcademyGame.getInstance().setCurrentSceneRef(this);
+    this.layerManager = new GameLayerManager(this);
     await this.preloadChapterAssets();
     this.renderBackground();
     this.renderChapters();
@@ -60,9 +54,9 @@ class ChapterSelect extends Phaser.Scene {
     // Scroll the chapter select if button is currently clicked/held down
     let newXPos = this.chapterContainer.x;
     if (this.isScrollRight) {
-      newXPos -= chapConstants.defaultScrollSpeed;
+      newXPos -= chapConstants.scrollSpeed;
     } else if (this.isScrollLeft) {
-      newXPos += chapConstants.defaultScrollSpeed;
+      newXPos += chapConstants.scrollSpeed;
     }
     this.chapterContainer.x = limitNumber(
       newXPos,
@@ -75,7 +69,7 @@ class ChapterSelect extends Phaser.Scene {
    * Clean up of related managers.
    */
   public cleanUp() {
-    this.layerManager.clearAllLayers();
+    this.getLayerManager().clearAllLayers();
   }
 
   /**
@@ -98,7 +92,7 @@ class ChapterSelect extends Phaser.Scene {
       this,
       screenCenter.x,
       screenCenter.y,
-      ImageAssets.chapterSelectBackground.key
+      ImageAssets.spaceshipBg.key
     );
     const blackOverlay = new Phaser.GameObjects.Rectangle(
       this,
@@ -108,8 +102,8 @@ class ChapterSelect extends Phaser.Scene {
       screenSize.y,
       0
     ).setAlpha(0.3);
-    this.layerManager.addToLayer(Layer.Background, background);
-    this.layerManager.addToLayer(Layer.Background, blackOverlay);
+    this.getLayerManager().addToLayer(Layer.Background, background);
+    this.getLayerManager().addToLayer(Layer.Background, blackOverlay);
   }
 
   /**
@@ -117,13 +111,11 @@ class ChapterSelect extends Phaser.Scene {
    * (the gray frame, the left and right arrow, and back button.)
    */
   private renderChapters() {
-    const mask = this.createMask();
     this.backButtonContainer = new CommonBackButton(this, () => {
       this.cleanUp();
       this.scene.start('MainMenu');
     });
     this.chapterContainer = this.createChapterContainer();
-    this.chapterContainer.mask = new Phaser.Display.Masks.GeometryMask(this, mask);
 
     const border = new Phaser.GameObjects.Image(
       this,
@@ -137,7 +129,7 @@ class ChapterSelect extends Phaser.Scene {
       onDown: () => (this.isScrollLeft = true),
       onUp: () => (this.isScrollLeft = false),
       onOut: () => (this.isScrollLeft = false)
-    }).setPosition(screenCenter.x - chapConstants.arrowXOffset, screenCenter.y);
+    }).setPosition(screenCenter.x - chapConstants.arrow.xOffset, screenCenter.y);
 
     const rightArrow = createButton(this, {
       assetKey: ImageAssets.chapterSelectArrow.key,
@@ -145,28 +137,14 @@ class ChapterSelect extends Phaser.Scene {
       onUp: () => (this.isScrollRight = false),
       onOut: () => (this.isScrollRight = false)
     })
-      .setPosition(screenCenter.x + chapConstants.arrowXOffset, screenCenter.y)
+      .setPosition(screenCenter.x + chapConstants.arrow.xOffset, screenCenter.y)
       .setScale(-1, 1);
 
-    this.layerManager.addToLayer(Layer.UI, this.chapterContainer);
-    this.layerManager.addToLayer(Layer.UI, this.backButtonContainer);
-    this.layerManager.addToLayer(Layer.UI, border);
-    this.layerManager.addToLayer(Layer.UI, leftArrow);
-    this.layerManager.addToLayer(Layer.UI, rightArrow);
-  }
-
-  private createMask() {
-    const graphics = this.add.graphics();
-    const mask = graphics
-      .fillRect(
-        chapConstants.maskRect.x,
-        chapConstants.maskRect.y,
-        chapConstants.maskRect.width,
-        chapConstants.maskRect.height
-      )
-      .setPosition(screenCenter.x, screenCenter.y);
-    mask.alpha = 0;
-    return mask;
+    this.getLayerManager().addToLayer(Layer.UI, this.chapterContainer);
+    this.getLayerManager().addToLayer(Layer.UI, this.backButtonContainer);
+    this.getLayerManager().addToLayer(Layer.UI, border);
+    this.getLayerManager().addToLayer(Layer.UI, leftArrow);
+    this.getLayerManager().addToLayer(Layer.UI, rightArrow);
   }
 
   /**
@@ -180,12 +158,7 @@ class ChapterSelect extends Phaser.Scene {
     const chapterContainer = new Phaser.GameObjects.Container(this, 0, 0);
     chapterContainer.add(
       this.getGameChapters().map((chapterDetail, chapterIndex) => {
-        // Use latest checkpoint if it exist
-        let lastCheckpoint = 0;
-        if (this.loadedGameState && this.loadedGameState.gameSaveStates[chapterIndex]) {
-          lastCheckpoint = this.loadedGameState.gameSaveStates[chapterIndex].lastCheckpointPlayed;
-        }
-        return createChapter(this, chapterDetail, chapterIndex, lastCheckpoint);
+        return createChapter(this, chapterDetail, chapterIndex);
       })
     );
     return chapterContainer;
@@ -226,6 +199,7 @@ class ChapterSelect extends Phaser.Scene {
     });
     await sleep(scrollDuration);
   }
+  public getLayerManager = () => mandatory(this.layerManager);
 }
 
 export default ChapterSelect;

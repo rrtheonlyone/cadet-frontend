@@ -41,10 +41,10 @@ class DialogueRenderer {
   private drawDiamond(scene: Phaser.Scene) {
     const diamondSprite = new Phaser.GameObjects.Image(
       scene,
-      screenSize.x - dialogueConstants.promptSize.x - dialogueConstants.promptPadding.x,
-      screenSize.y - dialogueConstants.promptSize.y - dialogueConstants.promptPadding.y,
+      screenSize.x - dialogueConstants.prompt.x - dialogueConstants.prompt.xPad,
+      screenSize.y - dialogueConstants.prompt.y - dialogueConstants.prompt.yPad,
       ImageAssets.diamond.key
-    ).setDisplaySize(dialogueConstants.promptSize.x, dialogueConstants.promptSize.y);
+    ).setDisplaySize(dialogueConstants.prompt.x, dialogueConstants.prompt.y);
 
     return { container: diamondSprite, clearBlink: blink(scene, diamondSprite) };
   }
@@ -61,6 +61,7 @@ class DialogueRenderer {
    */
   public destroy() {
     const gameManager = GameGlobalAPI.getInstance().getGameManager();
+    this.typewriter.clearTyping();
     this.blinkingDiamond.clearBlink();
     this.getDialogueBox().off(Phaser.Input.Events.GAMEOBJECT_POINTER_UP);
     fadeAndDestroy(gameManager, this.getDialogueContainer());

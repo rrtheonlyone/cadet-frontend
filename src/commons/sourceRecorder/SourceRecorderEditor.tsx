@@ -31,9 +31,7 @@ type DispatchProps = {
   handleEditorEval: () => void;
   handleEditorValueChange: (newCode: string) => void;
   handleEditorUpdateBreakpoints: (breakpoints: string[]) => void;
-  handleFinishInvite?: () => void;
   handleRecordInput?: (input: Input) => void;
-  handleSetWebsocketStatus?: (websocketStatus: number) => void;
   handleUpdateHasUnsavedChanges?: (hasUnsavedChanges: boolean) => void;
 };
 
@@ -49,8 +47,6 @@ type StateProps = {
   isPlaying?: boolean;
   isRecording?: boolean;
   newCursorPosition?: Position;
-  sharedbAceInitValue?: string;
-  sharedbAceIsInviting?: boolean;
 };
 
 class SourcecastEditor extends React.PureComponent<SourceRecorderEditorProps, {}> {
@@ -228,7 +224,7 @@ class SourcecastEditor extends React.PureComponent<SourceRecorderEditorProps, {}
             value={this.props.editorValue}
             width="100%"
             setOptions={{
-              fontFamily: "'Inconsolata', monospace"
+              fontFamily: "'Inconsolata', 'Consolas', monospace"
             }}
           />
         </div>

@@ -44,7 +44,6 @@ import SideContentAutograder from '../sideContent/SideContentAutograder';
 import SideContentToneMatrix from '../sideContent/SideContentToneMatrix';
 import { SideContentTab, SideContentType } from '../sideContent/SideContentTypes';
 import Constants from '../utils/Constants';
-import { beforeNow } from '../utils/DateHelper';
 import { history } from '../utils/HistoryHelper';
 import { showWarningMessage } from '../utils/NotificationsHelper';
 import { assessmentCategoryLink } from '../utils/ParamParseHelper';
@@ -59,8 +58,7 @@ export type DispatchProps = {
   handleAssessmentFetch: (assessmentId: number) => void;
   handleBrowseHistoryDown: () => void;
   handleBrowseHistoryUp: () => void;
-  handleChapterSelect: (chapter: any, changeEvent: any) => void;
-  handleClearContext: (library: Library) => void;
+  handleClearContext: (library: Library, shouldInitLibrary: boolean) => void;
   handleDeclarationNavigate: (cursorPosition: Position) => void;
   handleEditorEval: () => void;
   handleEditorValueChange: (val: string) => void;
@@ -87,7 +85,7 @@ export type OwnProps = {
   assessmentId: number;
   questionId: number;
   notAttempted: boolean;
-  closeDate: string;
+  canSave: boolean;
 };
 
 export type StateProps = {
@@ -251,7 +249,10 @@ class AssessmentWorkspace extends React.Component<
               newCursorPosition: this.props.newCursorPosition,
               handleEditorUpdateBreakpoints: this.props.handleEditorUpdateBreakpoints,
               handlePromptAutocomplete: this.props.handlePromptAutocomplete,
-              isEditorAutorun: false
+              isEditorAutorun: false,
+              sourceChapter: question?.library?.chapter || 4,
+              sourceVariant: 'default',
+              externalLibraryName: question?.library?.external?.name || 'NONE'
             }
           : undefined,
       editorHeight: this.props.editorHeight,
@@ -273,7 +274,10 @@ class AssessmentWorkspace extends React.Component<
         handleReplEval: this.props.handleReplEval,
         handleReplValueChange: this.props.handleReplValueChange,
         output: this.props.output,
-        replValue: this.props.replValue
+        replValue: this.props.replValue,
+        sourceChapter: question?.library?.chapter || 4,
+        sourceVariant: 'default',
+        externalLibrary: question?.library?.external?.name || 'NONE'
       }
     };
     return (
@@ -336,7 +340,7 @@ class AssessmentWorkspace extends React.Component<
       editorPostpend,
       editorTestcases
     });
-    this.props.handleClearContext(question.library);
+    this.props.handleClearContext(question.library, true);
     this.props.handleUpdateHasUnsavedChanges(false);
     if (editorValue) {
       this.props.handleEditorValueChange(editorValue);
@@ -348,6 +352,7 @@ class AssessmentWorkspace extends React.Component<
     props: AssessmentWorkspaceProps,
     questionId: number
   ) => {
+    const isGraded = props.assessment!.questions[questionId].grader !== undefined;
     const tabs: SideContentTab[] = [
       {
         label: `Task ${questionId + 1}`,
@@ -369,7 +374,9 @@ class AssessmentWorkspace extends React.Component<
         body: (
           <SideContentAutograder
             testcases={props.editorTestcases}
-            autogradingResults={props.autogradingResults}
+            autogradingResults={
+              isGraded || props.assessment!.category === 'Path' ? props.autogradingResults : []
+            }
             handleTestcaseEval={this.props.handleTestcaseEval}
           />
         ),
@@ -377,7 +384,6 @@ class AssessmentWorkspace extends React.Component<
         toSpawn: () => true
       }
     ];
-    const isGraded = props.assessment!.questions[questionId].grader !== undefined;
     if (isGraded) {
       tabs.push({
         label: `Report Card`,
@@ -525,7 +531,7 @@ class AssessmentWorkspace extends React.Component<
     );
 
     const saveButton =
-      !beforeNow(this.props.closeDate) &&
+      this.props.canSave &&
       this.props.assessment!.questions[questionId].type !== QuestionTypes.mcq ? (
         <ControlButtonSaveButton
           hasUnsavedChanges={this.props.hasUnsavedChanges}

@@ -2,29 +2,31 @@ import ImageAssets from '../../assets/ImageAssets';
 import { getAwardProps } from '../../awards/GameAwardsHelper';
 import { AwardProperty } from '../../awards/GameAwardsTypes';
 import CommonBackButton from '../../commons/CommonBackButton';
-import { screenCenter, screenSize } from '../../commons/CommonConstants';
+import { Constants, screenCenter, screenSize } from '../../commons/CommonConstants';
 import { addLoadingScreen } from '../../effects/LoadingScreen';
+import { putWorkerMessage } from '../../effects/WorkerMessage';
 import GameInputManager from '../../input/GameInputManager';
 import GameLayerManager from '../../layer/GameLayerManager';
 import { Layer } from '../../layer/GameLayerTypes';
 import SourceAcademyGame from '../../SourceAcademyGame';
-import { UserStateTypes } from '../../state/GameStateTypes';
-import GameUserStateManager from '../../state/GameUserStateManager';
 import { createButton } from '../../utils/ButtonUtils';
-import { limitNumber } from '../../utils/GameUtils';
+import { limitNumber, mandatory } from '../../utils/GameUtils';
 import { resizeUnderflow } from '../../utils/SpriteUtils';
-import { calcTableFormatPos, Direction } from '../../utils/StyleUtils';
+import { calcTableFormatPos, Direction, HexColor } from '../../utils/StyleUtils';
 import { createBitmapText } from '../../utils/TextUtils';
-import { awardBannerTextStyle, AwardsHallConstants } from './AwardsHallConstants';
-import { createAwardsHoverContainer } from './AwardsHelper';
+import {
+  awardBannerTextStyle,
+  awardNoAssetTitleStyle,
+  AwardsHallConstants
+} from './AwardsHallConstants';
+import { createAwardsHoverContainer } from './AwardsHallHelper';
 
 /**
  * This scenes display all students awards (collectibles and achievements).
  */
 class AwardsHall extends Phaser.Scene {
-  public layerManager: GameLayerManager;
-  public inputManager: GameInputManager;
-  private userStateManager: GameUserStateManager;
+  public layerManager?: GameLayerManager;
+  public inputManager?: GameInputManager;
 
   private backgroundTile: Phaser.GameObjects.TileSprite | undefined;
   private awardsContainer: Phaser.GameObjects.Container | undefined;
@@ -38,10 +40,6 @@ class AwardsHall extends Phaser.Scene {
     super('AwardsHall');
     SourceAcademyGame.getInstance().setCurrentSceneRef(this);
 
-    this.layerManager = new GameLayerManager();
-    this.inputManager = new GameInputManager();
-    this.userStateManager = new GameUserStateManager();
-
     this.isScrollLeft = false;
     this.isScrollRight = false;
     this.scrollLim = 0;
@@ -49,34 +47,30 @@ class AwardsHall extends Phaser.Scene {
   }
 
   public init() {
-    this.layerManager = new GameLayerManager();
-    this.inputManager = new GameInputManager();
-    this.userStateManager = new GameUserStateManager();
+    this.layerManager = new GameLayerManager(this);
+    this.inputManager = new GameInputManager(this);
   }
 
   public preload() {
     addLoadingScreen(this);
-    this.userStateManager.initialise();
-    this.layerManager.initialise(this);
-    this.inputManager.initialise(this);
   }
 
   public async create() {
-    await this.userStateManager.loadAchievements();
-
     // Calculate the maximum horizontal space required based
     // on maximum number of achievement/collectible
-    const achievementLength = this.userStateManager.getList(UserStateTypes.achievements).length;
-    const collectibleLength = this.userStateManager.getList(UserStateTypes.achievements).length;
+    const achievementLength = this.getUserStateManager().getAchievements().length;
+    const collectibleLength = this.getUserStateManager().getCollectibles().length;
     this.awardXSpace =
       Math.ceil(
         Math.max(achievementLength, collectibleLength) / AwardsHallConstants.maxAwardsPerCol
-      ) * AwardsHallConstants.awardsXSpacing;
+      ) * AwardsHallConstants.award.xSpace;
 
     // Scroll limit is anything that exceed the screen size
     this.scrollLim = this.awardXSpace < screenSize.x ? 0 : this.awardXSpace - screenSize.x;
     this.renderBackground();
     this.renderAwards();
+
+    putWorkerMessage(this, 'A', screenSize.x * 0.95, screenSize.y * 0.99);
   }
 
   public update() {
@@ -85,9 +79,9 @@ class AwardsHall extends Phaser.Scene {
     // Scroll the awards hall if button is currently clicked/held down
     let newXPos = this.awardsContainer.x;
     if (this.isScrollRight) {
-      newXPos -= AwardsHallConstants.defaultScrollSpeed;
+      newXPos -= AwardsHallConstants.scrollSpeed;
     } else if (this.isScrollLeft) {
-      newXPos += AwardsHallConstants.defaultScrollSpeed;
+      newXPos += AwardsHallConstants.scrollSpeed;
     }
     newXPos = limitNumber(newXPos, -this.scrollLim, 0);
 
@@ -111,7 +105,7 @@ class AwardsHall extends Phaser.Scene {
       AwardsHallConstants.tileDim,
       ImageAssets.awardsBackground.key
     ).setOrigin(0, 0.25);
-    this.layerManager.addToLayer(Layer.Background, this.backgroundTile);
+    this.getLayerManager().addToLayer(Layer.Background, this.backgroundTile);
 
     // Add banners
     const banners = ['Achievements', 'Collectibles'];
@@ -121,7 +115,7 @@ class AwardsHall extends Phaser.Scene {
     });
     banners.forEach((banner, index) => {
       const bannerCont = this.createBanner(banner, bannerPos[index][1]);
-      this.layerManager.addToLayer(Layer.UI, bannerCont);
+      this.getLayerManager().addToLayer(Layer.UI, bannerCont);
     });
 
     const leftArrow = createButton(this, {
@@ -129,7 +123,7 @@ class AwardsHall extends Phaser.Scene {
       onDown: () => (this.isScrollLeft = true),
       onUp: () => (this.isScrollLeft = false),
       onOut: () => (this.isScrollLeft = false)
-    }).setPosition(screenCenter.x - AwardsHallConstants.arrowXOffset, screenCenter.y);
+    }).setPosition(screenCenter.x - AwardsHallConstants.arrow.xOffset, screenCenter.y);
 
     const rightArrow = createButton(this, {
       assetKey: ImageAssets.chapterSelectArrow.key,
@@ -137,7 +131,7 @@ class AwardsHall extends Phaser.Scene {
       onUp: () => (this.isScrollRight = false),
       onOut: () => (this.isScrollRight = false)
     })
-      .setPosition(screenCenter.x + AwardsHallConstants.arrowXOffset, screenCenter.y)
+      .setPosition(screenCenter.x + AwardsHallConstants.arrow.xOffset, screenCenter.y)
       .setScale(-1, 1);
 
     const backButton = new CommonBackButton(this, () => {
@@ -145,9 +139,9 @@ class AwardsHall extends Phaser.Scene {
       this.scene.start('MainMenu');
     });
 
-    this.layerManager.addToLayer(Layer.UI, leftArrow);
-    this.layerManager.addToLayer(Layer.UI, rightArrow);
-    this.layerManager.addToLayer(Layer.UI, backButton);
+    this.getLayerManager().addToLayer(Layer.UI, leftArrow);
+    this.getLayerManager().addToLayer(Layer.UI, rightArrow);
+    this.getLayerManager().addToLayer(Layer.UI, backButton);
   }
 
   /**
@@ -159,12 +153,14 @@ class AwardsHall extends Phaser.Scene {
     this.awardsContainer = new Phaser.GameObjects.Container(this, 0, 0);
 
     // Achievement
-    const achievements = this.getAwards(UserStateTypes.achievements);
+    const achievements = this.getAwards(this.getUserStateManager().getAchievements());
     const achievementsPos = calcTableFormatPos({
       direction: Direction.Column,
       numOfItems: achievements.length,
+      numItemLimit: AwardsHallConstants.maxAwardsPerCol,
+      redistributeLast: false,
       maxXSpace: this.awardXSpace,
-      maxYSpace: AwardsHallConstants.awardYSpace
+      maxYSpace: AwardsHallConstants.award.ySpace
     });
 
     // Achievement is positioned on the upper half of the screen
@@ -173,18 +169,20 @@ class AwardsHall extends Phaser.Scene {
         this.createAward(
           achievement,
           achievementsPos[index][0],
-          achievementsPos[index][1] + AwardsHallConstants.awardYStartPos - screenCenter.y
+          achievementsPos[index][1] + AwardsHallConstants.award.yStart - screenCenter.y
         )
       )
     );
 
     // Collectible
-    const collectibles = this.getAwards(UserStateTypes.collectibles);
+    const collectibles = this.getAwards(this.getUserStateManager().getCollectibles());
     const collectiblesPos = calcTableFormatPos({
       direction: Direction.Column,
       numOfItems: collectibles.length,
+      numItemLimit: AwardsHallConstants.maxAwardsPerCol,
+      redistributeLast: false,
       maxXSpace: this.awardXSpace,
-      maxYSpace: AwardsHallConstants.awardYSpace
+      maxYSpace: AwardsHallConstants.award.ySpace
     });
 
     // Collectible is positioned on the lower half of the screen
@@ -193,20 +191,19 @@ class AwardsHall extends Phaser.Scene {
         this.createAward(
           collectible,
           collectiblesPos[index][0],
-          collectiblesPos[index][1] + AwardsHallConstants.awardYStartPos
+          collectiblesPos[index][1] + AwardsHallConstants.award.yStart
         )
       )
     );
 
-    this.layerManager.addToLayer(Layer.Objects, this.awardsContainer);
+    this.getLayerManager().addToLayer(Layer.Objects, this.awardsContainer);
   }
 
   /**
-   * Fetch awardProps based on the type from the user state manager.
-   * @param type
+   * Fetch awardProps based on the type string[]
+   * @param keys
    */
-  private getAwards(type: UserStateTypes) {
-    const keys = this.userStateManager.getList(type);
+  private getAwards(keys: string[]) {
     const awardProps = getAwardProps(keys);
     return awardProps;
   }
@@ -222,13 +219,50 @@ class AwardsHall extends Phaser.Scene {
    */
   private createAward(award: AwardProperty, xPos: number, yPos: number) {
     const awardCont = new Phaser.GameObjects.Container(this, xPos, yPos);
-    const image = new Phaser.GameObjects.Sprite(this, 0, 0, award.assetKey).setOrigin(0.5);
-    const hoverCont = createAwardsHoverContainer(this, award);
 
-    resizeUnderflow(image, AwardsHallConstants.awardDim, AwardsHallConstants.awardDim);
+    let image;
+    if (award.assetKey === Constants.nullInteractionId) {
+      // No asset is associated with the award
+      image = new Phaser.GameObjects.Rectangle(
+        this,
+        0,
+        0,
+        AwardsHallConstants.award.dim,
+        AwardsHallConstants.award.dim,
+        HexColor.darkBlue,
+        0.8
+      );
+      image.setInteractive();
+
+      const text = new Phaser.GameObjects.Text(
+        this,
+        0,
+        0,
+        award.title,
+        awardNoAssetTitleStyle
+      ).setOrigin(0.5, 0.5);
+      awardCont.add([image, text]);
+    } else {
+      image = new Phaser.GameObjects.Sprite(this, 0, 0, award.assetKey).setOrigin(0.5);
+      resizeUnderflow(image, AwardsHallConstants.award.dim, AwardsHallConstants.award.dim);
+      image.setInteractive({ pixelPerfect: true, useHandCursor: true });
+
+      awardCont.add(image);
+    }
+
+    // Add black tint if award is not completed
+    const blackTint = new Phaser.GameObjects.Rectangle(
+      this,
+      0,
+      0,
+      AwardsHallConstants.award.dim,
+      AwardsHallConstants.award.dim,
+      0
+    ).setAlpha(award.completed ? 0 : 0.8);
+    awardCont.add(blackTint);
 
     // Set up the pop up
-    image.setInteractive({ pixelPerfect: true, useHandCursor: true });
+    const hoverCont = createAwardsHoverContainer(this, award);
     image.addListener(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () =>
       hoverCont.setVisible(true)
     );
@@ -243,8 +277,7 @@ class AwardsHall extends Phaser.Scene {
       }
     );
 
-    this.layerManager.addToLayer(Layer.UI, hoverCont);
-    awardCont.add(image);
+    this.getLayerManager().addToLayer(Layer.UI, hoverCont);
     return awardCont;
   }
 
@@ -252,8 +285,8 @@ class AwardsHall extends Phaser.Scene {
    * Clean up of related managers
    */
   private cleanUp() {
-    this.inputManager.clearListeners();
-    this.layerManager.clearAllLayers();
+    this.getInputManager().clearListeners();
+    this.getLayerManager().clearAllLayers();
   }
 
   /**
@@ -269,7 +302,7 @@ class AwardsHall extends Phaser.Scene {
     const bannerContainer = new Phaser.GameObjects.Container(this, 0, yPos);
     const bannerBg = new Phaser.GameObjects.Sprite(
       this,
-      AwardsHallConstants.bannerXOffset,
+      AwardsHallConstants.banner.xOffset,
       0,
       ImageAssets.awardsPage.key
     );
@@ -282,6 +315,10 @@ class AwardsHall extends Phaser.Scene {
     bannerContainer.add([bannerBg, bannerText]);
     return bannerContainer;
   }
+
+  public getUserStateManager = () => SourceAcademyGame.getInstance().getUserStateManager();
+  public getInputManager = () => mandatory(this.inputManager);
+  public getLayerManager = () => mandatory(this.layerManager);
 }
 
 export default AwardsHall;

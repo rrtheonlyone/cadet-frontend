@@ -1,16 +1,14 @@
 import { Assessment, IProgrammingQuestion } from 'src/commons/assessment/AssessmentTypes';
-import { getAssessment } from 'src/commons/sagas/RequestsSaga';
+import { getAssessment, getAssessmentOverviews } from 'src/commons/sagas/RequestsSaga';
 
 import ImageAssets from '../../assets/ImageAssets';
-import GameAwardsManager from '../../awards/GameAwardsManager';
-import GameEscapeManager from '../../escape/GameEscapeManager';
 import GameModeSequence from '../../mode/sequence/GameModeSequence';
 import { GamePhaseType } from '../../phase/GamePhaseTypes';
 import SourceAcademyGame from '../../SourceAcademyGame';
 import { HexColor } from '../../utils/StyleUtils';
 import { createBitmapText } from '../../utils/TextUtils';
 import RoomPreview from './RoomPreview';
-import { roomConstants, roomDefaultCode, verifiedStyle } from './RoomPreviewConstants';
+import { RoomConstants, roomDefaultCode, verifiedStyle } from './RoomPreviewConstants';
 
 /**
  * Async function that obtains students code for Create-My-Room mission
@@ -19,9 +17,9 @@ import { roomConstants, roomDefaultCode, verifiedStyle } from './RoomPreviewCons
  * @returns {Promise<string>} - promise of students code
  */
 export async function getRoomPreviewCode(): Promise<string> {
-  const roomMissionId = getRoomMissionId();
+  const roomAssessmentId = await getRoomAssessmentId();
   const mission = await getAssessment(
-    roomMissionId,
+    roomAssessmentId,
     SourceAcademyGame.getInstance().getAccountInfo()
   );
   const studentCode = getStudentRoomCode(mission);
@@ -29,13 +27,18 @@ export async function getRoomPreviewCode(): Promise<string> {
 }
 
 /**
- * Function that generates the correct mission id of students
+ * Function that generates the correct assessment id of students
  *
  * @param {AccountInfo} accInfo - students' account information
  */
-function getRoomMissionId() {
-  // TODO: Change to non-hardcode
-  return 405;
+async function getRoomAssessmentId() {
+  const assessments = await getAssessmentOverviews(
+    SourceAcademyGame.getInstance().getAccountInfo()
+  );
+  const roomAssessment = (assessments || []).find(
+    assessment => assessment.number === RoomConstants.assessmentNumber
+  );
+  return roomAssessment ? roomAssessment.id : 0;
 }
 
 /**
@@ -59,39 +62,31 @@ function getStudentRoomCode(mission: Assessment | null) {
 
 /**
  * CMR Game Phases for the phase manager.
- *
- * @param escapeMenu escape menu tied to CMR
- * @param awardMenu award menu tied to CMR
  */
-export const createCMRGamePhases = (
-  escapeMenu: GameEscapeManager,
-  awardMenu: GameAwardsManager
-) => {
-  return new Map([
-    [GamePhaseType.None, new GameModeSequence()],
-    [GamePhaseType.EscapeMenu, escapeMenu],
-    [GamePhaseType.AwardMenu, awardMenu]
-  ]);
+export const createCMRGamePhases = () => {
+  return new Map([[GamePhaseType.None, new GameModeSequence()]]);
 };
 
 /**
- * Create a verification container and its mask.
+ * Create a verification container.
  *
  * @param scene room preview scene
- * @returns {[Phaser.GameObjects.Container, Phaser.GameObjects.Graphics]} verification container, and its mask
+ * @returns {Phaser.GameObjects.Container} verification container
  */
 export const createVerifiedHoverContainer = (scene: RoomPreview) => {
   const hoverContainer = new Phaser.GameObjects.Container(scene, 0, 0);
+
   const hoverTextBg = new Phaser.GameObjects.Rectangle(
     scene,
     0,
     0,
-    roomConstants.tagWidth,
-    roomConstants.tagHeight,
+    RoomConstants.tag.width,
+    RoomConstants.tag.height,
     HexColor.darkBlue
   )
     .setOrigin(0.0, 0.5)
     .setAlpha(0.8);
+
   const hoverTextFrame = new Phaser.GameObjects.Sprite(
     scene,
     0,
@@ -99,34 +94,33 @@ export const createVerifiedHoverContainer = (scene: RoomPreview) => {
     ImageAssets.verifiedFrame.key
   ).setOrigin(0.0, 0.5);
 
-  const hoverMask = new Phaser.GameObjects.Graphics(scene)
-    .fillRect(
-      hoverTextBg.x - hoverTextBg.height * hoverTextBg.originX * 0.5,
-      hoverTextBg.y - hoverTextBg.width * hoverTextBg.originY * 0.5,
-      hoverTextBg.width,
-      hoverTextBg.height
-    )
-    .setAlpha(0);
+  const hoverLine = new Phaser.GameObjects.Rectangle(
+    scene,
+    0,
+    -hoverTextBg.height * 0.5,
+    hoverTextBg.width,
+    hoverTextBg.height * 0.05,
+    HexColor.offWhite
+  ).setOrigin(0.0, 0.0);
 
   const hoverText = createBitmapText(
     scene,
-    roomConstants.verifiedText,
-    roomConstants.hoverTagTextConfig,
+    RoomConstants.verifiedText,
+    RoomConstants.hoverTagTextConfig,
     verifiedStyle
-  )
-    .setPosition(roomConstants.startTextXPos, 0)
-    .setMask(hoverMask.createGeometryMask());
+  ).setBlendMode(Phaser.BlendModes.DIFFERENCE);
 
   scene.tweens.add({
-    targets: hoverText,
-    x: -roomConstants.startTextXPos,
-    duration: 5000,
+    targets: hoverLine,
+    alpha: 0.2,
+    y: hoverTextBg.height * 0.35,
+    duration: 2000,
     ease: 'Power0',
-    loop: -1,
-    onLoop: () => (hoverText.x = roomConstants.startTextXPos + 50)
+    yoyo: true,
+    loop: -1
   });
 
-  hoverContainer.add([hoverTextBg, hoverText, hoverTextFrame]);
+  hoverContainer.add([hoverTextBg, hoverText, hoverLine, hoverTextFrame]);
   hoverContainer.setVisible(false);
-  return [hoverContainer, hoverMask];
+  return hoverContainer;
 };

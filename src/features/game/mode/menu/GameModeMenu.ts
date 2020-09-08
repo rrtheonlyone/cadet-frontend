@@ -6,12 +6,12 @@ import { screenCenter, screenSize } from '../../commons/CommonConstants';
 import { IGameUI } from '../../commons/CommonTypes';
 import { fadeAndDestroy } from '../../effects/FadeEffect';
 import { Layer } from '../../layer/GameLayerTypes';
-import { GameLocationAttr } from '../../location/GameMapTypes';
+import { GameItemType } from '../../location/GameMapTypes';
 import { createButton } from '../../utils/ButtonUtils';
 import { sleep } from '../../utils/GameUtils';
 import { calcTableFormatPos } from '../../utils/StyleUtils';
 import { GameMode, gameModeToPhase } from '../GameModeTypes';
-import modeMenuConstants, { modeButtonStyle } from './GameModeMenuConstants';
+import MenuModeConstants, { modeButtonStyle } from './GameModeMenuConstants';
 
 /**
  * The class in charge of showing the "Menu" mode UI
@@ -27,9 +27,9 @@ class GameModeMenu implements IGameUI {
    */
   private getLatestLocationModes() {
     const currLocId = GameGlobalAPI.getInstance().getCurrLocId();
-    let latestModesInLoc = GameGlobalAPI.getInstance().getModesByLocId(currLocId);
-    const talkTopics = GameGlobalAPI.getInstance().getLocationAttr(
-      GameLocationAttr.talkTopics,
+    let latestModesInLoc = GameGlobalAPI.getInstance().getLocationModes(currLocId);
+    const talkTopics = GameGlobalAPI.getInstance().getGameItemsInLocation(
+      GameItemType.talkTopics,
       currLocId
     );
 
@@ -68,7 +68,7 @@ class GameModeMenu implements IGameUI {
         this.createModeButton(
           button.text,
           buttonPositions[index][0],
-          buttonPositions[index][1] + modeMenuConstants.buttonYPosOffset,
+          buttonPositions[index][1] + MenuModeConstants.button.yOffset,
           button.callback
         )
       )
@@ -87,12 +87,7 @@ class GameModeMenu implements IGameUI {
     return modes.sort().map(mode => {
       return {
         text: mode,
-        callback: () => {
-          GameGlobalAPI.getInstance().pushPhase(gameModeToPhase[mode]);
-          if (mode !== GameMode.Talk) {
-            GameGlobalAPI.getInstance().fadeOutLayer(Layer.Character, 300);
-          }
-        }
+        callback: async () => await GameGlobalAPI.getInstance().swapPhase(gameModeToPhase[mode])
       };
     });
   }
@@ -126,14 +121,15 @@ class GameModeMenu implements IGameUI {
   public async activateUI(): Promise<void> {
     const gameManager = GameGlobalAPI.getInstance().getGameManager();
     this.uiContainer = this.createUIContainer();
-    GameGlobalAPI.getInstance().addContainerToLayer(Layer.UI, this.uiContainer);
+    GameGlobalAPI.getInstance().addToLayer(Layer.UI, this.uiContainer);
 
     this.uiContainer.setPosition(this.uiContainer.x, screenSize.y);
 
     gameManager.tweens.add({
       targets: this.uiContainer,
-      ...modeMenuConstants.entryTweenProps
+      ...MenuModeConstants.entryTweenProps
     });
+    await sleep(500);
     GameGlobalAPI.getInstance().playSound(SoundAssets.modeEnter.key);
   }
 
@@ -151,7 +147,7 @@ class GameModeMenu implements IGameUI {
 
       gameManager.tweens.add({
         targets: this.uiContainer,
-        ...modeMenuConstants.exitTweenProps
+        ...MenuModeConstants.exitTweenProps
       });
 
       await sleep(500);

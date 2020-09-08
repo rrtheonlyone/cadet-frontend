@@ -1,9 +1,9 @@
 import GameManager from '../scenes/gameManager/GameManager';
-import SourceAcademyGame, { GameType } from '../SourceAcademyGame';
+import SourceAcademyGame from '../SourceAcademyGame';
 import { mandatory } from '../utils/GameUtils';
-import { createEmptySaveState, gameStateToJson, userSettingsToJson } from './GameSaveHelper';
+import { createEmptyGameSaveState, createEmptySaveState, gameStateToJson } from './GameSaveHelper';
 import { loadData, saveData } from './GameSaveRequests';
-import { FullSaveState, SettingsJson } from './GameSaveTypes';
+import { FullSaveState, GameSaveState, SettingsJson } from './GameSaveTypes';
 
 /**
  * The manager provides API for loading and saving data from the backend
@@ -15,7 +15,6 @@ export default class GameSaveManager {
 
   private chapterNum?: number;
   private checkpointNum?: number;
-  private continueGame?: boolean;
 
   constructor() {
     this.fullSaveState = createEmptySaveState();
@@ -42,7 +41,9 @@ export default class GameSaveManager {
   public registerGameInfo(chapterNum: number, checkpointNum: number, continueGame: boolean) {
     this.chapterNum = chapterNum;
     this.checkpointNum = checkpointNum;
-    this.continueGame = continueGame;
+    if (!continueGame) {
+      this.fullSaveState.gameSaveStates[chapterNum] = createEmptyGameSaveState();
+    }
   }
 
   ///////////////////////////////
@@ -59,10 +60,7 @@ export default class GameSaveManager {
    * shouldn't save game state to backend.
    */
   public async saveGame() {
-    if (
-      SourceAcademyGame.getInstance().isGameType(GameType.Game) &&
-      SourceAcademyGame.getInstance().getCurrentSceneRef() instanceof GameManager
-    ) {
+    if (SourceAcademyGame.getInstance().getCurrentSceneRef() instanceof GameManager) {
       this.fullSaveState = gameStateToJson(
         this.fullSaveState,
         this.getChapterNum(),
@@ -80,13 +78,11 @@ export default class GameSaveManager {
    * @param completedChapter the number of the completed chapter
    */
   public async saveChapterComplete(completedChapter: number) {
-    if (!SourceAcademyGame.getInstance().isGameType(GameType.Game)) {
-      return;
-    }
+    this.fullSaveState.gameSaveStates[completedChapter].chapterNewlyCompleted = true;
     if (completedChapter > this.getLargestCompletedChapterNum()) {
       this.fullSaveState.userSaveState.largestCompletedChapter = completedChapter;
-      await saveData(this.fullSaveState);
     }
+    await saveData(this.fullSaveState);
   }
 
   /**
@@ -96,7 +92,7 @@ export default class GameSaveManager {
    * @param settingsJson the newest settings of the user
    */
   public async saveSettings(settingsJson: SettingsJson) {
-    this.fullSaveState = userSettingsToJson(this.fullSaveState, settingsJson);
+    this.fullSaveState.userSaveState.settings = settingsJson;
     await saveData(this.fullSaveState);
   }
 
@@ -130,33 +126,30 @@ export default class GameSaveManager {
   /**
    * Gets user's gamestate for this chapter
    */
-  public getLoadedGameStoryState() {
-    if (this.continueGame) {
-      return this.fullSaveState.gameSaveStates[this.getChapterNum()];
-    } else {
-      return undefined;
-    }
+  public getGameSaveState(): GameSaveState {
+    return this.fullSaveState.gameSaveStates[this.getChapterNum()] || createEmptyGameSaveState();
   }
 
   /**
-   * Gets user's location for this chapter
+   * Gets user's location for this chapter if chapter has been created
    */
   public getLoadedLocation() {
-    if (this.continueGame && this.fullSaveState.gameSaveStates[this.getChapterNum()]) {
-      return this.fullSaveState.gameSaveStates[this.getChapterNum()].currentLocation;
-    } else {
-      return;
-    }
+    return this.getGameSaveState().currentLocation;
+  }
+  /**
+   * Returns the save state for a particular chapter, if no data, then create an empty save state
+   */
+  public getChapterSaveState(index: number) {
+    return this.fullSaveState.gameSaveStates[index] || createEmptyGameSaveState();
   }
 
-  /**
-   * Get user's phase (see GamePhaseManager for phase types) for this chapter
-   */
-  public getLoadedPhase() {
-    return this.fullSaveState.gameSaveStates[this.getChapterNum()].currentPhase;
-  }
+  public getTriggeredStateChangeActions = () => this.getGameSaveState().triggeredStateChangeActions;
+  public getTriggeredInteractions = () => this.getGameSaveState().triggeredInteractions;
+  public getCompletedObjectives = () => this.getGameSaveState().completedObjectives;
+  public getLoadedPhase = () => this.getGameSaveState().currentPhase;
+  public getChapterNewlyCompleted = () => this.getGameSaveState().chapterNewlyCompleted;
 
   public getChapterNum = () => mandatory(this.chapterNum);
   public getCheckpointNum = () => mandatory(this.checkpointNum);
-  public getFullSaveState = () => mandatory(this.fullSaveState);
+  public getFullSaveState = () => this.fullSaveState;
 }

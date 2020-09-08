@@ -6,9 +6,10 @@ import GameLayerManager from '../../layer/GameLayerManager';
 import { Layer } from '../../layer/GameLayerTypes';
 import SourceAcademyGame from '../../SourceAcademyGame';
 import { createButton } from '../../utils/ButtonUtils';
+import { mandatory } from '../../utils/GameUtils';
 import { calcTableFormatPos, Direction } from '../../utils/StyleUtils';
 import { createBitmapText } from '../../utils/TextUtils';
-import settingsConstants, {
+import SettingsConstants, {
   applySettingsTextStyle,
   optionHeaderTextStyle,
   optionTextStyle
@@ -21,18 +22,15 @@ import settingsConstants, {
 class Settings extends Phaser.Scene {
   private bgmVolumeRadioButtons: CommonRadioButton | undefined;
   private sfxVolumeRadioButtons: CommonRadioButton | undefined;
-  private layerManager: GameLayerManager;
+  private layerManager?: GameLayerManager;
 
   constructor() {
     super('Settings');
-    this.layerManager = new GameLayerManager();
-  }
-  public preload() {
-    SourceAcademyGame.getInstance().setCurrentSceneRef(this);
-    this.layerManager.initialise(this);
   }
 
   public async create() {
+    SourceAcademyGame.getInstance().setCurrentSceneRef(this);
+    this.layerManager = new GameLayerManager(this);
     this.renderBackground();
     this.renderOptions();
   }
@@ -45,7 +43,7 @@ class Settings extends Phaser.Scene {
       this,
       screenCenter.x,
       screenCenter.y,
-      ImageAssets.settingBackground.key
+      ImageAssets.spaceshipBg.key
     );
 
     const settingBgImg = new Phaser.GameObjects.Image(
@@ -54,8 +52,8 @@ class Settings extends Phaser.Scene {
       screenCenter.y,
       ImageAssets.settingBanner.key
     );
-    this.layerManager.addToLayer(Layer.Background, background);
-    this.layerManager.addToLayer(Layer.Background, settingBgImg);
+    this.getLayerManager().addToLayer(Layer.Background, background);
+    this.getLayerManager().addToLayer(Layer.Background, settingBgImg);
   }
 
   /**
@@ -69,7 +67,7 @@ class Settings extends Phaser.Scene {
     const optHeaderPos = calcTableFormatPos({
       direction: Direction.Column,
       numOfItems: optHeader.length,
-      maxYSpace: settingsConstants.optYSpace
+      maxYSpace: SettingsConstants.opt.ySpace
     });
     optCont.add(
       optHeader.map((header, index) => this.createOptionHeader(header, optHeaderPos[index][1]))
@@ -77,10 +75,10 @@ class Settings extends Phaser.Scene {
 
     // Get user default choice
     const { bgmVolume, sfxVolume } = this.getSaveManager().getSettings();
-    const sfxVolIdx = settingsConstants.volContainerOpts.findIndex(
+    const sfxVolIdx = SettingsConstants.volContainerOpts.findIndex(
       value => parseFloat(value) === sfxVolume
     );
-    const bgmVolIdx = settingsConstants.volContainerOpts.findIndex(
+    const bgmVolIdx = SettingsConstants.volContainerOpts.findIndex(
       value => parseFloat(value) === bgmVolume
     );
 
@@ -100,15 +98,15 @@ class Settings extends Phaser.Scene {
 
     // Create back button to main menu
     const backButton = new CommonBackButton(this, () => {
-      this.layerManager.clearAllLayers();
+      this.getLayerManager().clearAllLayers();
       this.scene.start('MainMenu');
     });
 
-    this.layerManager.addToLayer(Layer.UI, optCont);
-    this.layerManager.addToLayer(Layer.UI, this.sfxVolumeRadioButtons);
-    this.layerManager.addToLayer(Layer.UI, this.bgmVolumeRadioButtons);
-    this.layerManager.addToLayer(Layer.UI, applySettingsButton);
-    this.layerManager.addToLayer(Layer.UI, backButton);
+    this.getLayerManager().addToLayer(Layer.UI, optCont);
+    this.getLayerManager().addToLayer(Layer.UI, this.sfxVolumeRadioButtons);
+    this.getLayerManager().addToLayer(Layer.UI, this.bgmVolumeRadioButtons);
+    this.getLayerManager().addToLayer(Layer.UI, applySettingsButton);
+    this.getLayerManager().addToLayer(Layer.UI, backButton);
   }
 
   /**
@@ -136,7 +134,7 @@ class Settings extends Phaser.Scene {
     const headerText = createBitmapText(
       this,
       header,
-      settingsConstants.optHeaderTextConfig,
+      SettingsConstants.optHeaderTextConfig,
       optionHeaderTextStyle
     );
     optHeaderCont.add([headerDiv, headerText]);
@@ -153,13 +151,13 @@ class Settings extends Phaser.Scene {
     return new CommonRadioButton(
       this,
       {
-        choices: settingsConstants.volContainerOpts,
+        choices: SettingsConstants.volContainerOpts,
         defaultChoiceIdx: defaultChoiceIdx,
-        maxXSpace: settingsConstants.optXSpace,
-        choiceTextConfig: { x: 0, y: -50, oriX: 0.5, oriY: 0.25 },
+        maxXSpace: SettingsConstants.opt.xSpace,
+        choiceTextConfig: SettingsConstants.radioButtonsTextConfig,
         bitmapTextStyle: optionTextStyle
       },
-      settingsConstants.optXPos,
+      SettingsConstants.opt.x,
       -screenCenter.y + yPos
     );
   }
@@ -188,6 +186,7 @@ class Settings extends Phaser.Scene {
   }
 
   public getSaveManager = () => SourceAcademyGame.getInstance().getSaveManager();
+  public getLayerManager = () => mandatory(this.layerManager);
 }
 
 export default Settings;

@@ -16,15 +16,15 @@ import SSLogManager from '../../logger/SSLogManager';
 import SSObjectManager from '../../objects/SSObjectManager';
 import { StorySimState } from '../../StorySimulatorTypes';
 import SSTransformManager from '../../transform/SSTransformManager';
-import objPlacementConstants from './ObjectPlacementConstants';
+import ObjPlacementConstants from './ObjectPlacementConstants';
 
 /**
  * Allow users to position objects, set backgrounds, and get
  * the coordinates of the objects.
  */
 export default class ObjectPlacement extends Phaser.Scene {
-  public layerManager: GameLayerManager;
-  public inputManager: GameInputManager;
+  public layerManager?: GameLayerManager;
+  public inputManager?: GameInputManager;
   private transformManager: SSTransformManager;
   private cursorModes: SSCursorMode | undefined;
   private bboxManager: SSBBoxManager;
@@ -40,8 +40,6 @@ export default class ObjectPlacement extends Phaser.Scene {
 
   constructor() {
     super('ObjectPlacement');
-    this.layerManager = new GameLayerManager();
-    this.inputManager = new GameInputManager();
     this.objectManager = new SSObjectManager();
     this.bboxManager = new SSBBoxManager();
     this.backgroundManager = new SSBackgroundManager();
@@ -54,8 +52,8 @@ export default class ObjectPlacement extends Phaser.Scene {
   }
 
   public init() {
-    this.layerManager = new GameLayerManager();
-    this.inputManager = new GameInputManager();
+    this.layerManager = new GameLayerManager(this);
+    this.inputManager = new GameInputManager(this);
     this.objectManager = new SSObjectManager();
     this.bboxManager = new SSBBoxManager();
     this.backgroundManager = new SSBackgroundManager();
@@ -70,8 +68,6 @@ export default class ObjectPlacement extends Phaser.Scene {
   public create() {
     SourceAcademyGame.getInstance().setCurrentSceneRef(this);
 
-    this.layerManager.initialise(this);
-    this.inputManager.initialise(this);
     this.renderBackground();
     this.createUIButtons();
     this.backgroundManager.initialise(this);
@@ -105,15 +101,15 @@ export default class ObjectPlacement extends Phaser.Scene {
 
     this.cursorModes = new SSCursorMode(
       this,
-      objPlacementConstants.cursorModeXPos,
-      objPlacementConstants.cursorModeYPos
+      ObjPlacementConstants.cursor.x,
+      ObjPlacementConstants.cursor.y
     );
     this.populateCursorModes();
 
     uiContainer.add(this.cursorModes);
     uiContainer.add(backButton);
 
-    this.layerManager.addToLayer(Layer.UI, uiContainer);
+    this.getLayerManager().addToLayer(Layer.UI, uiContainer);
   }
 
   public renderBackground() {
@@ -125,7 +121,7 @@ export default class ObjectPlacement extends Phaser.Scene {
     );
     backgroundImg.setDisplaySize(screenSize.x, screenSize.y);
 
-    this.layerManager.addToLayer(Layer.Background, backgroundImg);
+    this.getLayerManager().addToLayer(Layer.Background, backgroundImg);
   }
 
   private populateCursorModes() {
@@ -186,7 +182,7 @@ export default class ObjectPlacement extends Phaser.Scene {
         const confirm = window.confirm('Are you sure you want to delete?');
 
         if (!confirm) return;
-        this.layerManager.clearSeveralLayers([Layer.Background, Layer.BBox, Layer.Objects]);
+        this.getLayerManager().clearSeveralLayers([Layer.Background, Layer.BBox, Layer.Objects]);
         this.objectManager.deleteAll();
         this.bboxManager.deleteAll();
         this.transformManager.deselect();
@@ -208,8 +204,8 @@ export default class ObjectPlacement extends Phaser.Scene {
   }
 
   private cleanUp() {
-    this.inputManager.clearListeners();
-    this.layerManager.clearAllLayers();
+    this.getInputManager().clearListeners();
+    this.getLayerManager().clearAllLayers();
   }
 
   public addAsset(assetKey: AssetKey, assetPath: AssetPath) {
@@ -251,4 +247,7 @@ export default class ObjectPlacement extends Phaser.Scene {
   public deleteBBox(bboxSprite: Phaser.GameObjects.Rectangle | Phaser.GameObjects.Image) {
     this.bboxManager.delete(bboxSprite);
   }
+
+  public getInputManager = () => mandatory(this.inputManager);
+  public getLayerManager = () => mandatory(this.layerManager);
 }

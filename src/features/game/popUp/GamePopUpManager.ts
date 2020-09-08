@@ -1,13 +1,13 @@
 import ImageAssets from '../assets/ImageAssets';
 import SoundAssets from '../assets/SoundAssets';
 import { Constants } from '../commons/CommonConstants';
-import { GamePosition, ItemId } from '../commons/CommonTypes';
+import { GamePosition, GameSize, ItemId } from '../commons/CommonTypes';
 import { scrollEntry, scrollExit } from '../effects/ScrollEffect';
 import { Layer } from '../layer/GameLayerTypes';
 import GameGlobalAPI from '../scenes/gameManager/GameGlobalAPI';
 import { sleep } from '../utils/GameUtils';
 import { resizeUnderflow } from '../utils/SpriteUtils';
-import popUpConstants from './GamePopUpConstants';
+import PopUpConstants from './GamePopUpConstants';
 
 /**
  * Manager in charge of keeping track of the the popups in
@@ -29,11 +29,13 @@ class GamePopUpManager {
    * @param position position of the pop up
    * @param duration duration in which the pop up to be shown. Afterwards, the popup will
    *                 be destroyed.
+   * @param size size of the popup, defaulted to medium.
    */
   public async displayPopUp(
     itemId: ItemId,
     position: GamePosition,
-    duration = Constants.popupDuration
+    duration = Constants.popUpDuration,
+    size: GameSize = GameSize.Medium
   ) {
     // Destroy previous pop up if any
     this.destroyPopUp(position);
@@ -44,10 +46,10 @@ class GamePopUpManager {
     // Frame
     const popUpFrameImg = new Phaser.GameObjects.Image(
       gameManager,
-      popUpConstants.rect.x[position],
-      popUpConstants.rect.y,
+      PopUpConstants.rect.x[position],
+      PopUpConstants.rect.y[size],
       ImageAssets.popUpFrame.key
-    );
+    ).setScale(PopUpConstants.rect.scale[size]);
 
     // Get assetKey
     const assetKey = this.getAssetKey(itemId);
@@ -56,23 +58,25 @@ class GamePopUpManager {
     // Set up images
     const popUpImage = new Phaser.GameObjects.Image(
       gameManager,
-      popUpConstants.rect.x[position] + popUpConstants.imgXOffset,
-      popUpConstants.rect.y + popUpConstants.imgYOffset,
+      PopUpConstants.rect.x[position] + PopUpConstants.image.xOffset,
+      PopUpConstants.rect.y[size] + PopUpConstants.image.yOffset,
       assetKey
     );
-    resizeUnderflow(popUpImage, popUpConstants.rect.width, popUpConstants.rect.height);
+    const newWidth = PopUpConstants.rect.width * PopUpConstants.rect.scale[size];
+    const newHeight = PopUpConstants.rect.height * PopUpConstants.rect.scale[size];
+    resizeUnderflow(popUpImage, newWidth, newHeight);
 
     container.add([popUpFrameImg, popUpImage]);
     this.currPopUp.set(position, container);
-    GameGlobalAPI.getInstance().addContainerToLayer(Layer.PopUp, container);
+    GameGlobalAPI.getInstance().addToLayer(Layer.PopUp, container);
     GameGlobalAPI.getInstance().playSound(SoundAssets.popUpEnter.key);
 
     container.setActive(true);
     container.setVisible(true);
     container.setScale(1.0, 0);
 
-    gameManager.tweens.add(scrollEntry([container], popUpConstants.tweenDuration));
-    await sleep(popUpConstants.tweenDuration);
+    gameManager.tweens.add(scrollEntry([container], PopUpConstants.tweenDuration));
+    await sleep(PopUpConstants.tweenDuration);
 
     setTimeout(() => this.destroyPopUp(position), duration);
   }
@@ -97,8 +101,8 @@ class GamePopUpManager {
 
     GameGlobalAPI.getInstance()
       .getGameManager()
-      .tweens.add(scrollExit([atPosContainer], popUpConstants.tweenDuration));
-    await sleep(popUpConstants.tweenDuration);
+      .tweens.add(scrollExit([atPosContainer], PopUpConstants.tweenDuration));
+    await sleep(PopUpConstants.tweenDuration);
 
     atPosContainer.setVisible(false);
     atPosContainer.setActive(false);
@@ -114,10 +118,7 @@ class GamePopUpManager {
    * @param itemId item ID
    */
   private getAssetKey(itemId: ItemId) {
-    const objectPropMap = GameGlobalAPI.getInstance()
-      .getGameManager()
-      .getCurrentCheckpoint()
-      .map.getObjects();
+    const objectPropMap = GameGlobalAPI.getInstance().getGameMap().getObjectPropMap();
     const objProp = objectPropMap.get(itemId);
     if (objProp) {
       return objProp.assetKey;

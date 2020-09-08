@@ -4,27 +4,26 @@ import { screenCenter, screenSize } from '../../commons/CommonConstants';
 import GameInputManager from '../../input/GameInputManager';
 import GameLayerManager from '../../layer/GameLayerManager';
 import { Layer } from '../../layer/GameLayerTypes';
+import { mandatory } from '../../utils/GameUtils';
 import { calcListFormatPos } from '../../utils/StyleUtils';
 import { createBitmapText } from '../../utils/TextUtils';
-import { bindingConstants, keyDescStyle, keyStyle } from './BindingsConstants';
+import { BindingConstants, keyDescStyle, keyStyle } from './BindingsConstants';
 
 /**
  * Displays various bindings of the game.
  * Static scene.
  */
 class Bindings extends Phaser.Scene {
-  public layerManager: GameLayerManager;
-  public inputManager: GameInputManager;
+  public layerManager?: GameLayerManager;
+  public inputManager?: GameInputManager;
 
   constructor() {
     super('Bindings');
-    this.layerManager = new GameLayerManager();
-    this.inputManager = new GameInputManager();
   }
 
-  public preload() {
-    this.layerManager.initialise(this);
-    this.inputManager.initialise(this);
+  public init() {
+    this.layerManager = new GameLayerManager(this);
+    this.inputManager = new GameInputManager(this);
   }
 
   public create() {
@@ -40,7 +39,7 @@ class Bindings extends Phaser.Scene {
       this,
       screenCenter.x,
       screenCenter.y,
-      ImageAssets.settingBackground.key
+      ImageAssets.spaceshipBg.key
     );
     const blackOverlay = new Phaser.GameObjects.Rectangle(
       this,
@@ -50,8 +49,8 @@ class Bindings extends Phaser.Scene {
       screenSize.y,
       0
     ).setAlpha(0.3);
-    this.layerManager.addToLayer(Layer.Background, background);
-    this.layerManager.addToLayer(Layer.Background, blackOverlay);
+    this.getLayerManager().addToLayer(Layer.Background, background);
+    this.getLayerManager().addToLayer(Layer.Background, blackOverlay);
   }
 
   /**
@@ -64,7 +63,7 @@ class Bindings extends Phaser.Scene {
     const bindingPositions = calcListFormatPos({
       numOfItems: bindings.length,
       xSpacing: 0,
-      ySpacing: bindingConstants.keyYSpacing
+      ySpacing: BindingConstants.key.yInterval
     });
 
     bindingsContainer.add(
@@ -73,17 +72,17 @@ class Bindings extends Phaser.Scene {
           binding.key,
           binding.text,
           bindingPositions[index][0],
-          bindingPositions[index][1] + bindingConstants.keyStartYPos
+          bindingPositions[index][1] + BindingConstants.key.yStart
         )
       )
     );
     const backButton = new CommonBackButton(this, () => {
-      this.layerManager.clearAllLayers();
+      this.getLayerManager().clearAllLayers();
       this.scene.start('MainMenu');
     });
 
-    this.layerManager.addToLayer(Layer.UI, bindingsContainer);
-    this.layerManager.addToLayer(Layer.UI, backButton);
+    this.getLayerManager().addToLayer(Layer.UI, bindingsContainer);
+    this.getLayerManager().addToLayer(Layer.UI, backButton);
   }
 
   /**
@@ -117,7 +116,7 @@ class Bindings extends Phaser.Scene {
     // Different keys may use different key icon
     const keyIcon = new Phaser.GameObjects.Sprite(
       this,
-      bindingConstants.keyIconXPos,
+      BindingConstants.icon.x,
       0,
       ImageAssets.squareKeyboardIcon.key
     );
@@ -129,12 +128,14 @@ class Bindings extends Phaser.Scene {
         break;
     }
 
-    const keyText = createBitmapText(this, key, bindingConstants.keyTextConfig, keyStyle);
-    const keyDesc = createBitmapText(this, desc, bindingConstants.keyDescTextConfig, keyDescStyle);
+    const keyText = createBitmapText(this, key, BindingConstants.keyTextConfig, keyStyle);
+    const keyDesc = createBitmapText(this, desc, BindingConstants.keyDescTextConfig, keyDescStyle);
 
     bindingContainer.add([keyIcon, keyText, keyDesc]);
     return bindingContainer;
   }
+  public getInputManager = () => mandatory(this.inputManager);
+  public getLayerManager = () => mandatory(this.layerManager);
 }
 
 export default Bindings;

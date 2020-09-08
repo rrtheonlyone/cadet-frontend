@@ -26,10 +26,10 @@ import {
   EVAL_TESTCASE_SUCCESS
 } from '../../application/types/InterpreterTypes';
 import { Library, Testcase, TestcaseType, TestcaseTypes } from '../../assessment/AssessmentTypes';
-import { INVALID_EDITOR_SESSION_ID } from '../../collabEditing/CollabEditingTypes';
 import { mockRuntimeContext } from '../../mocks/ContextMocks';
 import { mockTestcases } from '../../mocks/GradingMocks';
 import { SideContentType } from '../../sideContent/SideContentTypes';
+import { reportInfiniteLoopError } from '../../utils/InfiniteLoopReporter';
 import { showSuccessMessage, showWarningMessage } from '../../utils/NotificationsHelper';
 import {
   beginClearContext,
@@ -45,8 +45,9 @@ import {
 } from '../../workspace/WorkspaceActions';
 import {
   BEGIN_CLEAR_CONTEXT,
+  CHANGE_EXTERNAL_LIBRARY,
   CHAPTER_SELECT,
-  ENSURE_LIBRARIES_LOADED,
+  CLEAR_REPL_OUTPUT,
   EVAL_EDITOR,
   EVAL_REPL,
   EVAL_TESTCASE,
@@ -119,7 +120,7 @@ describe('EVAL_EDITOR', () => {
       expectSaga(workspaceSaga)
         .withState(newDefaultState)
         .put(beginInterruptExecution(workspaceLocation))
-        .put(beginClearContext(library, workspaceLocation))
+        .put(beginClearContext(workspaceLocation, library, false))
         .put(clearReplOutput(workspaceLocation))
         // calls evalCode here with the prepend in elevated Context: silent run
         .call.like({
@@ -129,6 +130,7 @@ describe('EVAL_EDITOR', () => {
             {
               scheduler: 'preemptive',
               originalMaxExecTime: execTime,
+              stepLimit: 1000,
               useSubst: false
             }
           ]
@@ -143,7 +145,12 @@ describe('EVAL_EDITOR', () => {
           args: [
             editorValue,
             context,
-            { scheduler: 'preemptive', originalMaxExecTime: execTime, useSubst: false }
+            {
+              scheduler: 'preemptive',
+              originalMaxExecTime: execTime,
+              stepLimit: 1000,
+              useSubst: false
+            }
           ]
         })
         // running the student's program should return -1, which is written to REPL
@@ -188,17 +195,6 @@ describe('TOGGLE_EDITOR_AUTORUN', () => {
   });
 });
 
-describe('INVALID_EDITOR_SESSION_ID', () => {
-  test('calls showWarningMessage correctly', () => {
-    return expectSaga(workspaceSaga)
-      .call(showWarningMessage, 'Invalid ID Input', 1000)
-      .dispatch({
-        type: INVALID_EDITOR_SESSION_ID
-      })
-      .silentRun();
-  });
-});
-
 describe('EVAL_REPL', () => {
   test('puts beginInterruptExecution, clearReplInput, sendReplInputToOutput and calls evalCode correctly', () => {
     const workspaceLocation = 'playground';
@@ -216,6 +212,7 @@ describe('EVAL_REPL', () => {
         .call(runInContext, replValue, context, {
           scheduler: 'preemptive',
           originalMaxExecTime: 1000,
+          stepLimit: 1000,
           useSubst: false
         })
         .dispatch({
@@ -347,7 +344,7 @@ describe('EVAL_TESTCASE', () => {
         .withState(newDefaultState)
         // Should not interrupt execution, clear context or clear REPL
         .not.put(beginInterruptExecution(workspaceLocation))
-        .not.put(beginClearContext(library, workspaceLocation))
+        .not.put(beginClearContext(workspaceLocation, library, false))
         .not.put(clearReplOutput(workspaceLocation))
         // Expect it to shard a new privileged context here and execute chunks in order
         // calls evalCode here with the prepend in elevated Context: silent run
@@ -428,7 +425,7 @@ describe('CHAPTER_SELECT', () => {
 
     return expectSaga(workspaceSaga)
       .withState(newDefaultState)
-      .put(beginClearContext(library, workspaceLocation))
+      .put(beginClearContext(workspaceLocation, library, false))
       .put(clearReplOutput(workspaceLocation))
       .call(showSuccessMessage, `Switched to Source \xa7${newChapter}`, 1000)
       .dispatch({
@@ -441,23 +438,13 @@ describe('CHAPTER_SELECT', () => {
   test('does not call beginClearContext, clearReplOutput and showSuccessMessage when oldChapter === newChapter and oldVariant === newVariant', () => {
     const newChapter = 4;
     const newVariant: Variant = 'default';
-    const library: Library = {
-      chapter: newChapter,
-      variant: newVariant,
-      external: {
-        name: 'NONE' as ExternalLibraryName,
-        symbols: context.externalSymbols
-      },
-      globals
-    };
-
     const newDefaultState = generateDefaultState(workspaceLocation, { context, globals });
 
     return expectSaga(workspaceSaga)
       .withState(newDefaultState)
-      .not.put(beginClearContext(library, workspaceLocation))
-      .not.put(clearReplOutput(workspaceLocation))
-      .not.call(showSuccessMessage, `Switched to Source \xa7${newChapter}`, 1000)
+      .not.put.actionType(BEGIN_CLEAR_CONTEXT)
+      .not.put.actionType(CLEAR_REPL_OUTPUT)
+      .not.call.fn(showSuccessMessage)
       .dispatch({
         type: CHAPTER_SELECT,
         payload: { chapter: newChapter, variant: newVariant, workspaceLocation }
@@ -509,7 +496,7 @@ describe('PLAYGROUND_EXTERNAL_SELECT', () => {
     return expectSaga(workspaceSaga)
       .withState(newDefaultState)
       .put(changeExternalLibrary(newExternalLibraryName, workspaceLocation))
-      .put(beginClearContext(library, workspaceLocation))
+      .put(beginClearContext(workspaceLocation, library, true))
       .put(clearReplOutput(workspaceLocation))
       .call(showSuccessMessage, `Switched to ${newExternalLibraryName} library`, 1000)
       .dispatch({
@@ -525,29 +512,18 @@ describe('PLAYGROUND_EXTERNAL_SELECT', () => {
   test('does not call the above when oldExternalLibraryName === newExternalLibraryName', () => {
     const oldExternalLibraryName = ExternalLibraryName.RUNES;
     const newExternalLibraryName = ExternalLibraryName.RUNES;
-
     const newDefaultState = generateDefaultState(workspaceLocation, {
       context,
       globals,
       externalLibrary: oldExternalLibraryName
     });
 
-    const symbols = externalLibraries.get(newExternalLibraryName)!;
-    const library: Library = {
-      chapter,
-      external: {
-        name: newExternalLibraryName,
-        symbols
-      },
-      globals
-    };
-
     return expectSaga(workspaceSaga)
       .withState(newDefaultState)
-      .not.put(changeExternalLibrary(newExternalLibraryName, workspaceLocation))
-      .not.put(beginClearContext(library, workspaceLocation))
-      .not.put(clearReplOutput(workspaceLocation))
-      .not.call(showSuccessMessage, `Switched to ${newExternalLibraryName} library`, 1000)
+      .not.put.actionType(CHANGE_EXTERNAL_LIBRARY)
+      .not.put.actionType(BEGIN_CLEAR_CONTEXT)
+      .not.put.actionType(CLEAR_REPL_OUTPUT)
+      .not.call.fn(showSuccessMessage)
       .dispatch({
         type: PLAYGROUND_EXTERNAL_SELECT,
         payload: {
@@ -559,37 +535,10 @@ describe('PLAYGROUND_EXTERNAL_SELECT', () => {
   });
 });
 
-describe('ENSURE_LIBRARIES_LOADED', () => {
-  test('does not call showWarningMessage when getReadyWebGLForCanvas is not undefined', () => {
-    (window as any).getReadyWebGLForCanvas = jest.fn();
-
-    return expectSaga(workspaceSaga)
-      .not.call(showWarningMessage, 'Error loading libraries', 750)
-      .dispatch({
-        type: ENSURE_LIBRARIES_LOADED
-      })
-      .silentRun();
-  });
-
-  test('calls showWarningMessage when race condition timeouts', () => {
-    return expectSaga(workspaceSaga)
-      .provide({
-        race: () => ({
-          loadedScripts: undefined,
-          timeout: true
-        })
-      })
-      .call(showWarningMessage, 'Error loading libraries', 750)
-      .dispatch({
-        type: ENSURE_LIBRARIES_LOADED
-      })
-      .silentRun();
-  });
-});
-
 describe('BEGIN_CLEAR_CONTEXT', () => {
   let loadLib: any;
   let getReadyWebGLForCanvas: any;
+  let getReadyStringifyForRunes: any;
   let chapter: number;
   let globals: Array<[string, any]>;
   let workspaceLocation: WorkspaceLocation;
@@ -597,9 +546,11 @@ describe('BEGIN_CLEAR_CONTEXT', () => {
   beforeEach(() => {
     loadLib = jest.fn();
     getReadyWebGLForCanvas = jest.fn();
+    getReadyStringifyForRunes = jest.fn();
 
     (window as any).loadLib = loadLib;
     (window as any).getReadyWebGLForCanvas = getReadyWebGLForCanvas;
+    (window as any).getReadyStringifyForRunes = getReadyStringifyForRunes;
 
     workspaceLocation = 'grading';
     chapter = 4;
@@ -624,10 +575,10 @@ describe('BEGIN_CLEAR_CONTEXT', () => {
     };
 
     return expectSaga(workspaceSaga)
-      .put(endClearContext(library, workspaceLocation))
+      .put.like({ action: endClearContext(library, workspaceLocation) })
       .dispatch({
         type: BEGIN_CLEAR_CONTEXT,
-        payload: { library, workspaceLocation }
+        payload: { library, workspaceLocation, shouldInitLibrary: true }
       })
       .silentRun()
       .then(() => {
@@ -653,10 +604,10 @@ describe('BEGIN_CLEAR_CONTEXT', () => {
     };
 
     return expectSaga(workspaceSaga)
-      .put(endClearContext(library, workspaceLocation))
+      .put.like({ action: endClearContext(library, workspaceLocation) })
       .dispatch({
         type: BEGIN_CLEAR_CONTEXT,
-        payload: { library, workspaceLocation }
+        payload: { library, workspaceLocation, shouldInitLibrary: true }
       })
       .silentRun()
       .then(() => {
@@ -687,7 +638,12 @@ describe('evalCode', () => {
     actionType = EVAL_EDITOR;
     context = createContext(); // mockRuntimeContext();
     value = 'test value';
-    options = { scheduler: 'preemptive', originalMaxExecTime: 1000, useSubst: false };
+    options = {
+      scheduler: 'preemptive',
+      originalMaxExecTime: 1000,
+      stepLimit: 1000,
+      useSubst: false
+    };
     lastDebuggerResult = { status: 'error' };
     state = generateDefaultState(workspaceLocation);
   });
@@ -700,6 +656,7 @@ describe('evalCode', () => {
         .call(runInContext, code, context, {
           scheduler: 'preemptive',
           originalMaxExecTime: execTime,
+          stepLimit: 1000,
           useSubst: false
         })
         .put(evalInterpreterSuccess(value, workspaceLocation))
@@ -719,10 +676,11 @@ describe('evalCode', () => {
         .call(runInContext, code, context, {
           scheduler: 'preemptive',
           originalMaxExecTime: execTime,
+          stepLimit: 1000,
           useSubst: false
         })
         .put(evalInterpreterSuccess(value, workspaceLocation))
-        .not.call(showSuccessMessage, 'Running all testcases!', 750)
+        .not.call(showSuccessMessage, 'Running all testcases!', 2000)
         .not.put(evalTestcase(workspaceLocation, 0))
         .silentRun();
     });
@@ -741,10 +699,11 @@ describe('evalCode', () => {
         .call(runInContext, code, context, {
           scheduler: 'preemptive',
           originalMaxExecTime: execTime,
+          stepLimit: 1000,
           useSubst: false
         })
         .put(evalInterpreterSuccess(value, workspaceLocation))
-        .call(showSuccessMessage, 'Running all testcases!', 750)
+        .call(showSuccessMessage, 'Running all testcases!', 2000)
         .put(evalTestcase(workspaceLocation, 0))
         .dispatch({
           type: EVAL_TESTCASE_SUCCESS,
@@ -781,10 +740,11 @@ describe('evalCode', () => {
         .call(runInContext, code, context, {
           scheduler: 'preemptive',
           originalMaxExecTime: execTime,
+          stepLimit: 1000,
           useSubst: false
         })
         .put(evalInterpreterSuccess(value, workspaceLocation))
-        .call(showSuccessMessage, 'Running all testcases!', 750)
+        .call(showSuccessMessage, 'Running all testcases!', 2000)
         .put(evalTestcase(workspaceLocation, 0))
         .dispatch({
           type: EVAL_TESTCASE_FAILURE,
@@ -808,10 +768,11 @@ describe('evalCode', () => {
         .call(runInContext, code, context, {
           scheduler: 'preemptive',
           originalMaxExecTime: execTime,
+          stepLimit: 1000,
           useSubst: false
         })
         .put(evalInterpreterSuccess(value, workspaceLocation))
-        .call(showSuccessMessage, 'Running all testcases!', 750)
+        .call(showSuccessMessage, 'Running all testcases!', 2000)
         .put(evalTestcase(workspaceLocation, 0))
         .dispatch({
           type: EVAL_TESTCASE_SUCCESS,
@@ -838,6 +799,7 @@ describe('evalCode', () => {
         .call(runInContext, code, context, {
           scheduler: 'preemptive',
           originalMaxExecTime: execTime,
+          stepLimit: 1000,
           useSubst: false
         })
         .put(endDebuggerPause(workspaceLocation))
@@ -851,6 +813,7 @@ describe('evalCode', () => {
         .call(runInContext, code, context, {
           scheduler: 'preemptive',
           originalMaxExecTime: execTime,
+          stepLimit: 1000,
           useSubst: false
         })
         .put.like({ action: { type: EVAL_INTERPRETER_ERROR } })
@@ -873,10 +836,33 @@ describe('evalCode', () => {
         .call(runInContext, code, context, {
           scheduler: 'preemptive',
           originalMaxExecTime: execTime,
+          stepLimit: 1000,
           useSubst: false
         })
         .put(evalInterpreterError(context.errors, workspaceLocation))
         .silentRun();
+    });
+
+    test('calls reportInfiniteLoop on error and sends correct data to sentry', () => {
+      context = createContext(3);
+      const code1 = 'const test=[(x)=>x,2,3,[(x)=>x],5];function f(x){return f(x);}';
+      const code2 = 'f(1);';
+      state = generateDefaultState(workspaceLocation, {});
+
+      return runInContext(code1, context, {
+        scheduler: 'preemptive',
+        originalMaxExecTime: 1000,
+        useSubst: false
+      }).then(_ => {
+        expectSaga(evalCode, code2, context, execTime, workspaceLocation, actionType)
+          .withState(state)
+          .call(
+            reportInfiniteLoopError,
+            'source_protection_recursion',
+            'const test=[x => x,2,3,[x => x],5];\nfunction f(x) {\n  return f(x);\n}\n{f(1);}'
+          )
+          .silentRun();
+      });
     });
   });
 

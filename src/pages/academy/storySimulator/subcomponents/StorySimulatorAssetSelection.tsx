@@ -1,6 +1,11 @@
 import { Icon, ITreeNode, Tooltip, Tree } from '@blueprintjs/core';
 import React from 'react';
-import { deleteS3File, s3AssetFolders } from 'src/features/storySimulator/StorySimulatorService';
+import { useRequest } from 'src/commons/utils/Hooks';
+import {
+  deleteS3File,
+  fetchAssetPaths,
+  s3AssetFolders
+} from 'src/features/storySimulator/StorySimulatorService';
 
 import { assetPathsToTree, treeMap } from './StorySimulatorAssetSelectionHelper';
 import StorySimulatorAssetViewer from './StorySimulatorAssetViewer';
@@ -9,20 +14,15 @@ type TreeState = {
   nodes: ITreeNode[];
 };
 
-type Props = {
-  assetPaths: string[];
-};
-
 /**
- * This component takes in all the asset paths and renders them in a folder format
- * where contents of folders are listed, and each folder can be opened/closed.
+ * This component provides a preview of all the S3 asset files.
  *
- * When a file is selected, its filename is stored in session storage, so that
- * Story Simulator's Object Placement can read the filename and load the image.
- *
- * @param assetPaths all the paths of assets in the S3 folder
+ * When a image is selected, the filename of the image is stored in session storage,
+ * so Story Simulator's Object Placement can read the filename and load the image.
  */
-const StorySimulatorAssetSelection = ({ assetPaths }: Props) => {
+const StorySimulatorAssetSelection = () => {
+  const { value: assetPaths } = useRequest<string[]>(fetchAssetPaths, []);
+
   const [currentAsset, setCurrentAsset] = React.useState('');
   const [assetTree, setAssetTree] = React.useState<TreeState>({ nodes: [] });
 

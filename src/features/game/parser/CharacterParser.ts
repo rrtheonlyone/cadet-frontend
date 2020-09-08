@@ -1,6 +1,6 @@
 import { Character } from '../character/GameCharacterTypes';
 import { AssetKey, ItemId } from '../commons/CommonTypes';
-import { GameLocationAttr, LocationId } from '../location/GameMapTypes';
+import { GameItemType, LocationId } from '../location/GameMapTypes';
 import StringUtils from '../utils/StringUtils';
 import Parser from './Parser';
 import ParserConverter from './ParserConverter';
@@ -56,10 +56,11 @@ export default class CharacterParser {
       characterDetails = characterDetails.slice(1);
     }
 
-    const [id, name, defaultExpression, defaultPosition] = StringUtils.splitByChar(
+    const [id, name, defaultExpression, defaultPosition, scale] = StringUtils.splitByChar(
       characterDetails,
       ','
     );
+    Parser.validator.registerId(id);
 
     const expressions = new Map<string, AssetKey>();
 
@@ -68,7 +69,8 @@ export default class CharacterParser {
       name,
       expressions,
       defaultExpression,
-      defaultPosition: ParserConverter.stringToPosition(defaultPosition)
+      defaultPosition: ParserConverter.stringToPosition(defaultPosition),
+      scale: scale ? parseFloat(scale) : 1
     };
 
     // Add asset key to expression map
@@ -81,11 +83,11 @@ export default class CharacterParser {
     );
 
     // Add character to map
-    Parser.checkpoint.map.addItemToMap(GameLocationAttr.characters, id, character);
+    Parser.checkpoint.map.setItemInMap(GameItemType.characters, id, character);
 
     // Add character to location
     if (addToLoc) {
-      Parser.checkpoint.map.setItemAt(locationId, GameLocationAttr.characters, id);
+      Parser.checkpoint.map.addItemToLocation(locationId, GameItemType.characters, id);
     }
   }
 }
